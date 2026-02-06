@@ -12,6 +12,7 @@ from tigre.utilities.geometry import Geometry
 from tigre.utilities.io.varian.utils import cm2mm, XML, PathLike, XMLReader
 from tigre.utilities.io.varian.varian_io import ProjData
 from tqdm import tqdm
+from keras import models
 
 
 def _read_scatt_xml(filepath: PathLike) -> ET.Element:
@@ -418,3 +419,26 @@ def correct_scatter(
         )
         primaries[i] = _calculate_primary(proj, scatter_est)
     return primaries
+
+
+def cnn_correct_scatter(proj_data: ProjData, blank_proj_data: ProjData, model: models.Model):
+
+    input_projs = np.zeros_like(proj_data.projs)
+    output_blank_projs = np.zeros_like(blank_proj_data.projs)
+
+    for i, proj in tqdm(enumerate(proj_data.projs)):
+        blank_interp = blank_proj_data.interp_proj(proj_data.angles[i])
+        input_projs[i] = proj / np.max(blank_interp)
+
+    input_projs = np.array(
+        [np.rot90(p, k=3) for p in input_projs]
+    )  # TODO: VERIFY VALIDITY OF ROTATION,
+
+    for i in range(blank_proj_data.num_projs()):
+        # normalize to a max 1
+        output_blank_projs[i] /= np.max(blank_proj_data.projs[i])
+
+    output_projs = model.predict(input_projs)
+    # TODO: undo rotation before returning output
+
+    return output_projs, output_blank_projs

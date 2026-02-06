@@ -16,15 +16,17 @@ from tigre.utilities.io.varian.scatter import (
     ScattParams,
     correct_detector_scatter,
     correct_scatter,
+    cnn_correct_scatter,
 )
 from scipy.ndimage import median_filter
 from tqdm import tqdm
+from keras import models
 
 
 def VarianDataLoader(filepath: PathLike, **kwargs) -> tuple[NDArray, Geometry, NDArray]:
     """Loads raw projection data (xim format) for CBCT scans acquired with Varian OBI
     (Truebeam 2.0 or 2.7). Option to perform detector scatter correction (dps) and FASKS scatter
-    correction (sc) based on algorithm described in Sun & Star-Lack 2010
+    correction (fasks) based on algorithm described in Sun & Star-Lack 2010
     (doi: 10.1088/0031-9155/55/22/007). Ring artifact correction is also applied.
     NOTE: This function has only been tested on clinical data from Varian Truebeam (Ver 2.7).
 
@@ -33,12 +35,12 @@ def VarianDataLoader(filepath: PathLike, **kwargs) -> tuple[NDArray, Geometry, N
         kwargs:
             acdc (bool): acceleration-deceleration correction (default: True)
             dps (bool): detector point scatter correction (default: True)
-            sc (bool): kernel-based scatter correction (default: True)
+            fasks (bool): kernel-based scatter correction (default: True)
 
     Returns:
         tuple[NDArray, Geometry, NDArray]: log-normalized projections, geometry, projection angles (in radians)
     """
-    acdc, dps, sc = parse_inputs(**kwargs)
+    acdc, dps, fasks, cnn_model = parse_inputs(**kwargs)
 
     scan_params = ScanParams(filepath)
     recon_params = ReconParams(filepath)
@@ -58,7 +60,12 @@ def VarianDataLoader(filepath: PathLike, **kwargs) -> tuple[NDArray, Geometry, N
         blank_proj_data.projs = correct_detector_scatter(blank_proj_data.projs, geometry, dps_calib)
         proj_data.projs = correct_detector_scatter(proj_data.projs, geometry, dps_calib)
 
-    if sc:
+    if cnn_model is not None:
+        proj_data.projs, blank_proj_data.projs = cnn_correct_scatter(
+            proj_data, blank_proj_data, cnn_model
+        )
+
+    elif fasks:
         sc_calib = ScattParams(filepath)
         proj_data.projs = correct_scatter(proj_data, blank_proj_data, geometry, sc_calib)
 
@@ -93,17 +100,30 @@ def log_normalize(proj_data: ProjData, blank_proj_data: ProjData) -> NDArray:
     return log_projs
 
 
-def parse_inputs(**kwargs) -> tuple[bool, bool, bool]:
+def parse_inputs(**kwargs) -> tuple[bool, bool, bool, None | models.Model]:
     """
-    Returns tags.
-    ACDC: acceleration-deceleration correction (default: True)
-    DPS: detector point scatter correction (default: True)
-    SC: kernel-based scatter correction (default: True)
+    acdc: acceleration-deceleration correction (default: False)
+    dps: detector point scatter correction (default: False)
+    fasks: kernel-based scatter correction (default: False)
+    cnn_model: filepath to a keras model (model.keras)
     """
 
-    acdc = kwargs["acdc"] if "acdc" in kwargs else True
-    dps = kwargs["dps"] if "dps" in kwargs else True
-    sc = kwargs["sc"] if "sc" in kwargs else True
-    if sc and not dps:
-        RuntimeWarning("dps should be enabled when sc=true.")
-    return acdc, dps, sc
+    acdc = kwargs["acdc"] if "acdc" in kwargs else False
+    dps = kwargs["dps"] if "dps" in kwargs else False
+    fasks = kwargs["fasks"] if "fasks" in kwargs else False
+    if fasks and not dps:
+        dps = True
+        print("dps enabled.")
+
+    if kwargs["keras_model"]:
+        dps = True  # change to False if your keras model included detector scatter correction
+        if fasks:
+            fasks = False
+            raise RuntimeWarning(
+                "Cannot perform FASKS correction and CNN scatter correction. Disabling FASKS."
+            )
+        cnn_model = models.load_model(kwargs["keras_model"])
+    else:
+        cnn_model = None
+
+    return acdc, dps, fasks, cnn_model
