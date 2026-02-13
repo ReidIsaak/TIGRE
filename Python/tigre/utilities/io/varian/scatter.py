@@ -421,8 +421,21 @@ def correct_scatter(
     return primaries
 
 
-def cnn_correct_scatter(proj_data: ProjData, blank_proj_data: ProjData, model: models.Model):
+def cnn_correct_scatter(
+    proj_data: ProjData, blank_proj_data: ProjData, model: models.Model
+) -> tuple[NDArray, NDArray]:
+    """Performs scatter correction using a pre-trained convolutional neural network (CNN). The inputs
+    are normalized by dividing by the max. of the respective blank scan. The blank scan(s) is also
+    normalized to one.
 
+    Args:
+        proj_data (ProjData): projection data
+        blank_proj_data (ProjData): blank projection data
+        model (models.Model): a pre-trained keras model (format: .keras)
+
+    Returns:
+        tuple[NDArray,NDArray]: cnn-corrected projections, normalized blank projections
+    """
     input_projs = np.zeros_like(proj_data.projs)
     output_blank_projs = np.zeros_like(blank_proj_data.projs)
 
@@ -431,14 +444,19 @@ def cnn_correct_scatter(proj_data: ProjData, blank_proj_data: ProjData, model: m
         input_projs[i] = proj / np.max(blank_interp)
 
     input_projs = np.array(
-        [np.rot90(p, k=3) for p in input_projs]
-    )  # TODO: VERIFY VALIDITY OF ROTATION,
+        [np.rot90(p) for p in input_projs]
+    )  # NOTE: orientation should match that used in training
 
     for i in range(blank_proj_data.num_projs()):
-        # normalize to a max 1
         output_blank_projs[i] /= np.max(blank_proj_data.projs[i])
 
     output_projs = model.predict(input_projs)
-    # TODO: undo rotation before returning output
+
+    eps = np.finfo(input_projs.dtype).eps
+    output_projs[output_projs < eps] = eps
+
+    output_projs = np.array(
+        [np.rot90(p, k=3) for p in input_projs]
+    )  # NOTE: reset to original orientation
 
     return output_projs, output_blank_projs
