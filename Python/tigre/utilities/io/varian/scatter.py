@@ -448,7 +448,7 @@ def cnn_correct_scatter(
     du, dv = _get_detector_coords(geometry, downsample=4)
     DU, DV = np.meshgrid(du, dv)
 
-    input_projs = np.zeros([proj_data.num_projs(), len(du), len(dv)])
+    input_projs = np.zeros([proj_data.num_projs(), len(dv), len(du)])
     output_projs = np.zeros_like(proj_data.projs)
     output_blank_projs = np.zeros_like(blank_proj_data.projs)
 
@@ -465,7 +465,7 @@ def cnn_correct_scatter(
         output_blank_projs[i] /= np.max(blank_proj_data.projs[i])
 
     scatter_est = model.predict(input_projs)
-
+    scatter_est = np.squeeze(scatter_est)
     primary = input_projs - np.minimum(scatter_est, max_scatt_frac * input_projs)
     eps = np.finfo(input_projs.dtype).eps
     primary[primary < eps] = eps
