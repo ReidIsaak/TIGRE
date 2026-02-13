@@ -472,7 +472,7 @@ def cnn_correct_scatter(
 
     for proj in primary:
         proj_upsample = interpn(
-            (dv, du), proj, (V, U), method="linear", bounds_error=False, fill_value=None
+            (dv, du), proj, (V, U), method="cubic", bounds_error=False, fill_value=None
         )
         proj_upsample[proj_upsample < eps] = eps
         output_projs[i] = np.rot90(proj_upsample, k=3)
