@@ -14,6 +14,8 @@ from tigre.utilities.io.varian.varian_io import ProjData
 from tqdm import tqdm
 from keras import models
 
+MAX_SCATT_FRAC = 0.95
+
 
 def _read_scatt_xml(filepath: PathLike) -> ET.Element:
     """Reads scatter correction parameters from Calibration.xml stored in
@@ -422,7 +424,11 @@ def correct_scatter(
 
 
 def cnn_correct_scatter(
-    proj_data: ProjData, blank_proj_data: ProjData, model: models.Model
+    proj_data: ProjData,
+    blank_proj_data: ProjData,
+    geometry: Geometry,
+    model: models.Model,
+    max_scatt_frac: float = 0.95,
 ) -> tuple[NDArray, NDArray]:
     """Performs scatter correction using a pre-trained convolutional neural network (CNN). The inputs
     are normalized by dividing by the max. of the respective blank scan. The blank scan(s) is also
@@ -436,12 +442,20 @@ def cnn_correct_scatter(
     Returns:
         tuple[NDArray,NDArray]: cnn-corrected projections, normalized blank projections
     """
-    input_projs = np.zeros_like(proj_data.projs)
+    u, v = _get_detector_coords(geometry)
+    U, V = np.meshgrid(u, v)
+
+    du, dv = _get_detector_coords(geometry, downsample=4)
+    DU, DV = np.meshgrid(du, dv)
+
+    input_projs = np.zeros([len(du), len(dv), proj_data.num_projs()])
+    output_projs = np.zeros_like(proj_data.projs)
     output_blank_projs = np.zeros_like(blank_proj_data.projs)
 
     for i, proj in tqdm(enumerate(proj_data.projs)):
         blank_interp = blank_proj_data.interp_proj(proj_data.angles[i])
-        input_projs[i] = proj / np.max(blank_interp)
+        proj_norm = proj / np.max(blank_interp)
+        input_projs[i] = interpn((v, u), proj_norm, (DV, DU))
 
     input_projs = np.array(
         [np.rot90(p) for p in input_projs]
@@ -450,13 +464,17 @@ def cnn_correct_scatter(
     for i in range(blank_proj_data.num_projs()):
         output_blank_projs[i] /= np.max(blank_proj_data.projs[i])
 
-    output_projs = model.predict(input_projs)
+    scatter_est = model.predict(input_projs)
 
+    primary = input_projs - np.minimum(scatter_est, max_scatt_frac * input_projs)
     eps = np.finfo(input_projs.dtype).eps
-    output_projs[output_projs < eps] = eps
+    primary[primary < eps] = eps
 
-    output_projs = np.array(
-        [np.rot90(p, k=3) for p in input_projs]
-    )  # NOTE: reset to original orientation
+    for proj in primary:
+        proj_upsample = interpn(
+            (dv, du), proj, (V, U), method="linear", bounds_error=False, fill_value=None
+        )
+        proj_upsample[proj_upsample < eps] = eps
+        output_projs[i] = np.rot90(proj_upsample, k=3)
 
     return output_projs, output_blank_projs

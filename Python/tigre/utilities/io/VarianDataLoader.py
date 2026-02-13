@@ -63,7 +63,7 @@ def VarianDataLoader(filepath: PathLike, **kwargs) -> tuple[NDArray, Geometry, N
 
     if cnn_model is not None:
         proj_data.projs, blank_proj_data.projs = cnn_correct_scatter(
-            proj_data, blank_proj_data, cnn_model
+            proj_data, blank_proj_data, geometry, cnn_model
         )
 
     elif fasks:
@@ -117,7 +117,7 @@ def parse_inputs(**kwargs) -> tuple[bool, bool, bool, None | models.Model]:
         print("dps enabled.")
 
     if kwargs["keras_model"]:
-        dps = True  # change to False if your keras model included detector scatter correction
+        # dps = True  # change to False if your keras model included detector scatter correction
         if fasks:
             fasks = False
             raise RuntimeWarning(
