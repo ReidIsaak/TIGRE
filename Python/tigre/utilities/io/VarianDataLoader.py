@@ -49,6 +49,7 @@ def VarianDataLoader(filepath: PathLike, **kwargs) -> tuple[NDArray, Geometry, N
     geometry = read_varian_geometry(scan_params, recon_params)
 
     blank_proj_data = load_blank_projections(filepath, scan_params)
+
     if acdc:
         angular_threshold = scan_params.calculate_angular_threshold()
         proj_data = load_projections(filepath, angular_threshold)
@@ -108,7 +109,7 @@ def parse_inputs(**kwargs) -> tuple[bool, bool, bool, None | models.Model]:
     cnn_model: filepath to a keras model (model.keras)
     """
 
-    acdc = kwargs["acdc"] if "acdc" in kwargs else False
+    acdc = kwargs["acdc"] if "acdc" in kwargs else True
     dps = kwargs["dps"] if "dps" in kwargs else False
     fasks = kwargs["fasks"] if "fasks" in kwargs else False
     if fasks and not dps:
