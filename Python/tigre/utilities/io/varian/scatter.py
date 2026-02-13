@@ -448,7 +448,7 @@ def cnn_correct_scatter(
     du, dv = _get_detector_coords(geometry, downsample=4)
     DU, DV = np.meshgrid(du, dv)
 
-    input_projs = np.zeros([len(du), len(dv), proj_data.num_projs()])
+    input_projs = np.zeros([proj_data.num_projs(), len(du), len(dv)])
     output_projs = np.zeros_like(proj_data.projs)
     output_blank_projs = np.zeros_like(blank_proj_data.projs)
 
