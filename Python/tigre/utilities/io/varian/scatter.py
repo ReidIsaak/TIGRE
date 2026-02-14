@@ -13,6 +13,7 @@ from tigre.utilities.io.varian.utils import cm2mm, XML, PathLike, XMLReader
 from tigre.utilities.io.varian.varian_io import ProjData
 from tqdm import tqdm
 from keras import models
+from skimage.transform import rescale, downscale_local_mean
 
 MAX_SCATT_FRAC = 0.95
 
@@ -428,7 +429,7 @@ def cnn_correct_scatter(
     blank_proj_data: ProjData,
     geometry: Geometry,
     model: models.Model,
-    max_scatt_frac: float = 0.93,
+    max_scatt_frac: float = 0.9,
 ) -> tuple[NDArray, NDArray]:
     """Performs scatter correction using a pre-trained convolutional neural network (CNN). The inputs
     are normalized by dividing by the max. of the respective blank scan. The blank scan(s) is also
@@ -442,6 +443,7 @@ def cnn_correct_scatter(
     Returns:
         tuple[NDArray,NDArray]: cnn-corrected projections, normalized blank projections
     """
+    DOWN_FACTOR = 4
     print("Performing CNN scatter correction: ")
     u, v = _get_detector_coords(geometry)
     U, V = np.meshgrid(u, v)
@@ -456,7 +458,7 @@ def cnn_correct_scatter(
     for i, proj in tqdm(enumerate(proj_data.projs)):
         blank_interp = blank_proj_data.interp_proj(proj_data.angles[i])
         proj_norm = proj / np.max(blank_interp)
-        input_projs[i] = interpn((v, u), proj_norm, (DV, DU))  # TODO: replace with skimage resize()
+        input_projs[i] = downscale_local_mean(proj_norm, (DOWN_FACTOR, DOWN_FACTOR))
 
     input_projs = np.array(
         [np.rot90(p) for p in input_projs]
@@ -472,13 +474,9 @@ def cnn_correct_scatter(
     scatter = np.zeros_like(proj_data.projs)
     for i, sc in tqdm(enumerate(scatter_est)):
         sc_rot = np.rot90(sc, k=3)
-        scatter = interpn(
-            (dv, du), sc_rot, (V, U), method="cubic", bounds_error=False, fill_value=None
-        )  # TODO: replace with skimage resize()
+        scatter = rescale(sc_rot, DOWN_FACTOR, anti_aliasing=False)
         scatter[scatter < 0] = 0
 
     output_projs = proj_data.projs - np.minimum(scatter, max_scatt_frac * proj_data.projs)
-    eps = np.finfo(proj_data.projs.dtype).eps
-    output_projs[output_projs < eps] = eps
 
     return output_projs, output_blank_projs
