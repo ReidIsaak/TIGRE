@@ -428,7 +428,7 @@ def cnn_correct_scatter(
     blank_proj_data: ProjData,
     geometry: Geometry,
     model: models.Model,
-    max_scatt_frac: float = 0.95,
+    max_scatt_frac: float = 0.93,
 ) -> tuple[NDArray, NDArray]:
     """Performs scatter correction using a pre-trained convolutional neural network (CNN). The inputs
     are normalized by dividing by the max. of the respective blank scan. The blank scan(s) is also
@@ -442,6 +442,7 @@ def cnn_correct_scatter(
     Returns:
         tuple[NDArray,NDArray]: cnn-corrected projections, normalized blank projections
     """
+    print("Performing CNN scatter correction: ")
     u, v = _get_detector_coords(geometry)
     U, V = np.meshgrid(u, v)
 
@@ -455,26 +456,29 @@ def cnn_correct_scatter(
     for i, proj in tqdm(enumerate(proj_data.projs)):
         blank_interp = blank_proj_data.interp_proj(proj_data.angles[i])
         proj_norm = proj / np.max(blank_interp)
-        input_projs[i] = interpn((v, u), proj_norm, (DV, DU))
+        input_projs[i] = interpn((v, u), proj_norm, (DV, DU))  # TODO: replace with skimage resize()
 
     input_projs = np.array(
         [np.rot90(p) for p in input_projs]
     )  # NOTE: orientation should match that used in training
 
-    for i in range(blank_proj_data.num_projs()):
-        output_blank_projs[i] /= np.max(blank_proj_data.projs[i])
+    for i, blank_proj in enumerate(blank_proj_data.projs):
+        output_blank_projs[i] = blank_proj / np.max(blank_proj)
 
+    print("Estimating scatter: ")
     scatter_est = model.predict(input_projs)
     scatter_est = np.squeeze(scatter_est)
-    primary = input_projs - np.minimum(scatter_est, max_scatt_frac * input_projs)
-    eps = np.finfo(input_projs.dtype).eps
-    primary[primary < eps] = eps
 
-    for proj in primary:
-        proj_upsample = interpn(
-            (dv, du), proj, (V, U), method="cubic", bounds_error=False, fill_value=None
-        )
-        proj_upsample[proj_upsample < eps] = eps
-        output_projs[i] = np.rot90(proj_upsample, k=3)
+    scatter = np.zeros_like(proj_data.projs)
+    for i, sc in tqdm(enumerate(scatter_est)):
+        sc_rot = np.rot90(sc, k=3)
+        scatter = interpn(
+            (dv, du), sc_rot, (V, U), method="cubic", bounds_error=False, fill_value=None
+        )  # TODO: replace with skimage resize()
+        scatter[scatter < 0] = 0
+
+    output_projs = proj_data.projs - np.minimum(scatter, max_scatt_frac * proj_data.projs)
+    eps = np.finfo(proj_data.projs.dtype).eps
+    output_projs[output_projs < eps] = eps
 
     return output_projs, output_blank_projs
