@@ -15,8 +15,6 @@ from tqdm import tqdm
 from keras import models
 from skimage.transform import rescale, downscale_local_mean
 
-MAX_SCATT_FRAC = 0.95
-
 
 def _read_scatt_xml(filepath: PathLike) -> ET.Element:
     """Reads scatter correction parameters from Calibration.xml stored in
