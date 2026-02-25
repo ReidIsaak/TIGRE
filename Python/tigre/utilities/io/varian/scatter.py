@@ -450,8 +450,8 @@ def cnn_correct_scatter(
 
     for i, proj in tqdm(enumerate(proj_data.projs)):
         blank_interp = blank_proj_data.interp_proj(proj_data.angles[i])
-        proj_norm = proj / np.max(blank_interp)
-        input_projs[i] = downscale_local_mean(proj_norm, (DOWN_FACTOR, DOWN_FACTOR))
+        proj /= np.max(blank_interp)
+        input_projs[i] = downscale_local_mean(proj, (DOWN_FACTOR, DOWN_FACTOR))
 
     input_projs = np.array(
         [np.rot90(p) for p in input_projs]
@@ -468,7 +468,6 @@ def cnn_correct_scatter(
     for i, sc in tqdm(enumerate(scatter_est)):
         sc_rot = np.rot90(sc, k=3)
         scatter[i] = rescale(sc_rot, DOWN_FACTOR, anti_aliasing=False)
-    print("hi")
     scatter[scatter < 0] = 0
 
     output_projs = proj_data.projs - np.minimum(scatter, max_scatt_frac * proj_data.projs)
