@@ -332,7 +332,8 @@ def correct_detector_scatter(
     print("Performing detector point scatter correction: ")
     for i, proj in tqdm(enumerate(projs)):
         # proj_down = interpn((v, u), proj, (DV, DU))
-        proj_down = downscale_local_mean(projs, (downsample, downsample))
+        print("new downscale method! Am I faster?")
+        proj_down = downscale_local_mean(proj, (downsample, downsample))
         scatter_down = convolve2d(proj_down, det_kernel, mode="same")
         # scatter = interpn(
         #     (dv, du), scatter_down, (V, U), method="cubic", bounds_error=False, fill_value=None
