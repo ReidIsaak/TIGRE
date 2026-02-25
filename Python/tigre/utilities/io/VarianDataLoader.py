@@ -112,12 +112,14 @@ def parse_inputs(**kwargs) -> tuple[bool, bool, bool, None | models.Model]:
     acdc = kwargs["acdc"] if "acdc" in kwargs else True
     dps = kwargs["dps"] if "dps" in kwargs else False
     fasks = kwargs["fasks"] if "fasks" in kwargs else False
+    keras_model = kwargs["keras_model"] if "keras_model" in kwargs else None
+
     if fasks and not dps:
         dps = True
         print("dps enabled.")
 
-    if kwargs["keras_model"]:
-        # dps = True  # change to False if your keras model included detector scatter correction
+    if keras_model:
+        dps = True  # change to False if your keras model included detector scatter correction
         if fasks:
             fasks = False
             raise RuntimeWarning(
