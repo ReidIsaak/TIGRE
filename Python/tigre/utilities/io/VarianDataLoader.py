@@ -103,7 +103,7 @@ def log_normalize(proj_data: ProjData, blank_proj_data: ProjData) -> NDArray:
     return log_projs
 
 
-def parse_inputs(**kwargs) -> tuple[bool, bool, bool, None | models.Model]:
+def parse_inputs(**kwargs) -> tuple[bool, bool, bool, None | models.Model, float]:
     """
     acdc: acceleration-deceleration correction (default: False)
     dps: detector point scatter correction (default: False)

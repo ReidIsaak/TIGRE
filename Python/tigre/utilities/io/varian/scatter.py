@@ -421,7 +421,7 @@ def cnn_correct_scatter(
     proj_data: ProjData,
     blank_proj_data: ProjData,
     model: models.Model,
-    max_scatt_frac: float = 0.99,
+    max_scatt_frac: float = 0.95,
 ) -> tuple[NDArray, NDArray]:
     """Performs scatter correction using a pre-trained convolutional neural network (CNN). The inputs
     are normalized by dividing by the max. of the respective blank scan. The blank scan(s) is also
@@ -468,7 +468,7 @@ def cnn_correct_scatter(
     for i, sc in tqdm(enumerate(scatter_est)):
         sc_rot = np.rot90(sc, k=3)
         scatter[i] = rescale(sc_rot, DOWN_FACTOR, anti_aliasing=False)
-
+    print("hi")
     scatter[scatter < 0] = 0
 
     output_projs = proj_data.projs - np.minimum(scatter, max_scatt_frac * proj_data.projs)
