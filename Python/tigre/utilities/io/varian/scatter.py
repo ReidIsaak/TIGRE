@@ -321,8 +321,6 @@ def correct_detector_scatter(
     Returns:
         NDArray: dps-corrected projections
     """
-    u, v = _get_detector_coords(geometry)
-    U, V = np.meshgrid(u, v)
     du, dv = _get_detector_coords(geometry, downsample=downsample)
     DU, DV = np.meshgrid(du, dv)
 
@@ -350,7 +348,7 @@ def correct_scatter(
     blank_proj_data: ProjData,
     geometry: Geometry,
     sc_calib: ScattParams,
-    downsample: int = 12,
+    downsample: int = 8,
     max_iter: int = 8,
     lam: float = 0.005,
     min_delta: float = 1e-16,
@@ -372,9 +370,6 @@ def correct_scatter(
         NDArray: scatter-corrected projections
     """
 
-    u, v = _get_detector_coords(geometry)
-    U, V = np.meshgrid(u, v)
-
     du, dv = _get_detector_coords(geometry, downsample=downsample)
     DU, DV = np.meshgrid(du, dv)
 
@@ -388,9 +383,7 @@ def correct_scatter(
     print("Performing FASKS scatter correction: ")
     for i, proj in tqdm(enumerate(proj_data.projs)):
         blank = blank_proj_data.interp_proj(proj_data.angles[i])
-        # blank = interpn((v, u), blank, (DV, DU))
         blank = downscale_local_mean(blank, (downsample, downsample))
-        # primary = interpn((v, u), proj, (DV, DU))
         primary = downscale_local_mean(proj, (downsample, downsample))
         scatter = np.zeros_like(primary)
 
@@ -419,9 +412,6 @@ def correct_scatter(
             delta_scatter = np.mean(np.abs(scatter - scatter_old))
             n_iter += 1
 
-        # scatter_est = interpn(
-        #     (dv, du), scatter, (V, U), method="cubic", bounds_error=False, fill_value=None
-        # )
         scatter_est = rescale(scatter, downsample, anti_aliasing=False)
         primaries[i] = _calculate_primary(proj, scatter_est)
     return primaries
@@ -430,7 +420,6 @@ def correct_scatter(
 def cnn_correct_scatter(
     proj_data: ProjData,
     blank_proj_data: ProjData,
-    geometry: Geometry,
     model: models.Model,
     max_scatt_frac: float = 0.9,
 ) -> tuple[NDArray, NDArray]:
@@ -448,13 +437,14 @@ def cnn_correct_scatter(
     """
     DOWN_FACTOR = 4
     print("Performing CNN scatter correction: ")
-    u, v = _get_detector_coords(geometry)
-    U, V = np.meshgrid(u, v)
 
-    du, dv = _get_detector_coords(geometry, downsample=4)
-    DU, DV = np.meshgrid(du, dv)
-
-    input_projs = np.zeros([proj_data.num_projs(), len(dv), len(du)])
+    input_projs = np.zeros(
+        [
+            proj_data.num_projs(),
+            proj_data.projs.shape[1] // DOWN_FACTOR,
+            proj_data.projs.shape[2] // DOWN_FACTOR,
+        ]
+    )
     output_projs = np.zeros_like(proj_data.projs)
     output_blank_projs = np.zeros_like(blank_proj_data.projs)
 
