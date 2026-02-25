@@ -331,11 +331,13 @@ def correct_detector_scatter(
     corrected_projs = np.zeros_like(projs)
     print("Performing detector point scatter correction: ")
     for i, proj in tqdm(enumerate(projs)):
-        proj_down = interpn((v, u), projs[0], (DV, DU))
+        # proj_down = interpn((v, u), proj, (DV, DU))
+        proj_down = downscale_local_mean(projs, (downsample, downsample))
         scatter_down = convolve2d(proj_down, det_kernel, mode="same")
-        scatter = interpn(
-            (dv, du), scatter_down, (V, U), method="cubic", bounds_error=False, fill_value=None
-        )
+        # scatter = interpn(
+        #     (dv, du), scatter_down, (V, U), method="cubic", bounds_error=False, fill_value=None
+        # )
+        scatter = rescale(scatter_down, downsample, anti_aliasing=False)
         corrected_projs[i] = proj - scatter
     eps = np.finfo(proj.dtype).eps
     corrected_projs[corrected_projs < eps] = eps
@@ -386,8 +388,10 @@ def correct_scatter(
     print("Performing FASKS scatter correction: ")
     for i, proj in tqdm(enumerate(proj_data.projs)):
         blank = blank_proj_data.interp_proj(proj_data.angles[i])
-        blank = interpn((v, u), blank, (DV, DU))
-        primary = interpn((v, u), proj, (DV, DU))
+        # blank = interpn((v, u), blank, (DV, DU))
+        blank = downscale_local_mean(blank, (downsample, downsample))
+        # primary = interpn((v, u), proj, (DV, DU))
+        primary = downscale_local_mean(proj, (downsample, downsample))
         scatter = np.zeros_like(primary)
 
         n_iter = 0
@@ -415,9 +419,10 @@ def correct_scatter(
             delta_scatter = np.mean(np.abs(scatter - scatter_old))
             n_iter += 1
 
-        scatter_est = interpn(
-            (dv, du), scatter, (V, U), method="cubic", bounds_error=False, fill_value=None
-        )
+        # scatter_est = interpn(
+        #     (dv, du), scatter, (V, U), method="cubic", bounds_error=False, fill_value=None
+        # )
+        scatter_est = rescale(scatter, downsample, anti_aliasing=False)
         primaries[i] = _calculate_primary(proj, scatter_est)
     return primaries
 
