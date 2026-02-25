@@ -7,7 +7,6 @@ import xml.etree.ElementTree as ET
 from scipy.ndimage import gaussian_filter, median_filter
 from scipy.fft import fft2, ifft2
 from scipy.signal import decimate, convolve2d
-from scipy.interpolate import interpn
 from tigre.utilities.geometry import Geometry
 from tigre.utilities.io.varian.utils import cm2mm, XML, PathLike, XMLReader
 from tigre.utilities.io.varian.varian_io import ProjData
@@ -352,6 +351,7 @@ def correct_scatter(
     max_iter: int = 8,
     lam: float = 0.005,
     min_delta: float = 1e-16,
+    max_scatt_frac: float = 0.95,
 ) -> NDArray:
     """Performs FASKS scatter correction (sc) based on algorithm described in Sun & Star-Lack 2010
     (doi: 10.1088/0031-9155/55/22/007).
@@ -413,7 +413,7 @@ def correct_scatter(
             n_iter += 1
 
         scatter_est = rescale(scatter, downsample, anti_aliasing=False)
-        primaries[i] = _calculate_primary(proj, scatter_est)
+        primaries[i] = _calculate_primary(proj, scatter_est, max_scatt_frac=max_scatt_frac)
     return primaries
 
 
@@ -421,7 +421,7 @@ def cnn_correct_scatter(
     proj_data: ProjData,
     blank_proj_data: ProjData,
     model: models.Model,
-    max_scatt_frac: float = 0.9,
+    max_scatt_frac: float = 0.99,
 ) -> tuple[NDArray, NDArray]:
     """Performs scatter correction using a pre-trained convolutional neural network (CNN). The inputs
     are normalized by dividing by the max. of the respective blank scan. The blank scan(s) is also
@@ -467,8 +467,9 @@ def cnn_correct_scatter(
     scatter = np.zeros_like(proj_data.projs)
     for i, sc in tqdm(enumerate(scatter_est)):
         sc_rot = np.rot90(sc, k=3)
-        scatter = rescale(sc_rot, DOWN_FACTOR, anti_aliasing=False)
-        scatter[scatter < 0] = 0
+        scatter[i] = rescale(sc_rot, DOWN_FACTOR, anti_aliasing=False)
+
+    scatter[scatter < 0] = 0
 
     output_projs = proj_data.projs - np.minimum(scatter, max_scatt_frac * proj_data.projs)
 

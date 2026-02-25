@@ -40,7 +40,7 @@ def VarianDataLoader(filepath: PathLike, **kwargs) -> tuple[NDArray, Geometry, N
     Returns:
         tuple[NDArray, Geometry, NDArray]: log-normalized projections, geometry, projection angles (in radians)
     """
-    acdc, dps, fasks, cnn_model = parse_inputs(**kwargs)
+    acdc, dps, fasks, cnn_model, max_scatt_frac = parse_inputs(**kwargs)
 
     scan_params = ScanParams(filepath)
     recon_params = ReconParams(filepath)
@@ -63,12 +63,14 @@ def VarianDataLoader(filepath: PathLike, **kwargs) -> tuple[NDArray, Geometry, N
 
     if cnn_model is not None:
         proj_data.projs, blank_proj_data.projs = cnn_correct_scatter(
-            proj_data, blank_proj_data, cnn_model
+            proj_data, blank_proj_data, cnn_model, max_scatt_frac=max_scatt_frac
         )
 
     elif fasks:
         sc_calib = ScattParams(filepath)
-        proj_data.projs = correct_scatter(proj_data, blank_proj_data, geometry, sc_calib)
+        proj_data.projs = correct_scatter(
+            proj_data, blank_proj_data, geometry, sc_calib, max_scatt_frac=max_scatt_frac
+        )
 
     log_projs = log_normalize(proj_data, blank_proj_data)
     log_projs = correct_ring_artifacts(log_projs)
@@ -113,6 +115,7 @@ def parse_inputs(**kwargs) -> tuple[bool, bool, bool, None | models.Model]:
     dps = kwargs["dps"] if "dps" in kwargs else False
     fasks = kwargs["fasks"] if "fasks" in kwargs else False
     keras_model = kwargs["keras_model"] if "keras_model" in kwargs else None
+    max_scatt_frac = kwargs["max_scatt_frac"] if "max_scatt_frac" in kwargs else 0.95
 
     if fasks and not dps:
         dps = True
@@ -123,8 +126,8 @@ def parse_inputs(**kwargs) -> tuple[bool, bool, bool, None | models.Model]:
         if fasks:
             fasks = False
             print("CNN scatter correction enabled. Disabling FASKS.")
-        cnn_model = models.load_model(kwargs["keras_model"])
+        cnn_model = models.load_model(keras_model)
     else:
         cnn_model = None
 
-    return acdc, dps, fasks, cnn_model
+    return acdc, dps, fasks, cnn_model, max_scatt_frac
