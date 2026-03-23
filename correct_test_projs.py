@@ -3,26 +3,85 @@ from tigre.algorithms.single_pass_algorithms import FDK
 from tigre.utilities.crop_CBCT import cropCBCT
 import pathlib
 import numpy as np
+import pickle
 
-pt_num = 4105896
-mydir = "C:/CBCT_Scatter_Removal_Project/data/clinical/4105896/2021-08-09_121614/77f2251f-5813-4611-bcbd-4d52864d18ee/"
+PT_ID = 4105896
+PT_DIR = "C:/CBCT_Scatter_Removal_Project/data/clinical/4105896/2021-08-09_121614/77f2251f-5813-4611-bcbd-4d52864d18ee/"
 
-LOG_DIRS = []
+BASE_DIR = pathlib.Path("C:/dev/scatter-unet/runs/")
+LOG_DIRS = [
+    "20251210-024442",
+    "20251210-141034",
+    "20251210-204557",
+    "20251211-081647",
+    "20251211-194500",
+    "20251212-070941",
+    "20251212-134851",
+    "20251212-202544",
+]
 
 
 def main():
-    log_dir = pathlib.Path("C:/dev/scatter-unet/runs/20251212-070941")
-    keras_model = log_dir / "ckpt" / "model.keras"
+    # cnn correction
     for log_dir in LOG_DIRS:
+        print(f"\nCNN CORRECTION: {log_dir}\n")
+        keras_model = BASE_DIR / log_dir / "ckpt" / "model.keras"
         log_projs, geo, angles = VarianDataLoader(
-            mydir, acdc=1, dps=1, fasks=0, keras_model=keras_model
+            PT_DIR, acdc=1, dps=1, fasks=0, keras_model=keras_model
         )
-        fname = str(log_dir).split("\\")[-1] + f"_pt{pt_num}_cnn_projs.npy"
-        np.savez(log_dir / fname, log_projs=log_projs, geo=geo, angles=angles)
+        fname = str(log_dir).split("\\")[-1] + f"_pt{PT_ID}_cnn_projs.npy"
+        np.savez(BASE_DIR / log_dir / fname, log_projs=log_projs, angles=angles)
+        fname_geo = str(log_dir).split("\\")[-1] + f"_pt{PT_ID}_geo.pkl"
+        with open(BASE_DIR / log_dir / fname_geo, "wb") as f:
+            pickle.dump(geo, f)
 
         recon = FDK(log_projs, geo, angles, filter="shepp_logan")
         rec = cropCBCT(recon)
         rec[rec < 0] = 0
 
-        fname_rec = str(log_dir).split("\\")[-1] + f"_pt{pt_num}_cnn_recon_sl.npy"
-        np.save(log_dir / fname_rec, rec)
+        fname_rec = str(log_dir).split("\\")[-1] + f"_pt{PT_ID}_cnn_recon_sl.npy"
+        np.save(BASE_DIR / log_dir / fname_rec, rec)
+
+    print("\nNO CORRECTION\n")
+    log_projs, geo, angles = VarianDataLoader(
+        PT_DIR,
+        acdc=1,
+        dps=1,
+        fasks=0,
+    )
+    fname = f"pt{PT_ID}_dps_projs.npy"
+    np.savez(BASE_DIR / fname, log_projs=log_projs, angles=angles)
+    fname_geo = f"pt{PT_ID}_geo.pkl"
+    with open(BASE_DIR / fname_geo, "wb") as f:
+        pickle.dump(geo, f)
+
+    recon = FDK(log_projs, geo, angles, filter="shepp_logan")
+    rec = cropCBCT(recon)
+    rec[rec < 0] = 0
+
+    fname_rec = f"pt{PT_ID}_dps_recon_sl.npy"
+    np.save(BASE_DIR / fname_rec, rec)
+
+    print("\nFASKS CORRECTION\n")
+    log_projs, geo, angles = VarianDataLoader(
+        PT_DIR,
+        acdc=1,
+        dps=1,
+        fasks=1,
+    )
+    fname = f"pt{PT_ID}_fasks_projs.npy"
+    np.savez(BASE_DIR / fname, log_projs=log_projs, angles=angles)
+    fname_geo = f"pt{PT_ID}_geo.pkl"
+    with open(BASE_DIR / fname_geo, "wb") as f:
+        pickle.dump(geo, f)
+
+    recon = FDK(log_projs, geo, angles, filter="shepp_logan")
+    rec = cropCBCT(recon)
+    rec[rec < 0] = 0
+
+    fname_rec = f"pt{PT_ID}_fasks_recon_sl.npy"
+    np.save(BASE_DIR / fname_rec, rec)
+
+
+if __name__ == "__main__":
+    main()
