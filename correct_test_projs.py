@@ -42,6 +42,12 @@ def main():
         fname_rec = str(log_dir).split("\\")[-1] + f"_pt{PT_ID}_cnn_recon_sl.npy"
         np.save(BASE_DIR / log_dir / fname_rec, rec)
 
+        log_projs = None
+        geo = None
+        angles = None
+        recon = None
+        rec = None
+
     print("\nNO CORRECTION\n")
     log_projs, geo, angles = VarianDataLoader(
         PT_DIR,
@@ -62,6 +68,12 @@ def main():
     fname_rec = f"pt{PT_ID}_dps_recon_sl.npy"
     np.save(BASE_DIR / fname_rec, rec)
 
+    log_projs = None
+    geo = None
+    angles = None
+    recon = None
+    rec = None
+
     print("\nFASKS CORRECTION\n")
     log_projs, geo, angles = VarianDataLoader(
         PT_DIR,
@@ -81,6 +93,12 @@ def main():
 
     fname_rec = f"pt{PT_ID}_fasks_recon_sl.npy"
     np.save(BASE_DIR / fname_rec, rec)
+
+    log_projs = None
+    geo = None
+    angles = None
+    recon = None
+    rec = None
 
 
 if __name__ == "__main__":
