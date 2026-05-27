@@ -305,7 +305,7 @@ def read_varian_geometry(scan_params: ScanParams, recon_params: ReconParams | No
                 recon_params.matrix_size,
                 recon_params.matrix_size,
             ]
-        )
+        ).astype("int")
         geometry.dVoxel = geometry.sVoxel / geometry.nVoxel
 
     return geometry
