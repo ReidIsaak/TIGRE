@@ -5,8 +5,7 @@ from tigre.algorithms.iterative_recon_alg import decorator
 from tigre.utilities.im_3d_denoise import im3ddenoise
 
 
-
-class SART(IterativeReconAlg):  
+class SART(IterativeReconAlg):
     __doc__ = (
         "SART solves Cone Beam CT image reconstruction using \n"
         "Simultaneous Algebraic Reconstruction Technique algorithm\n"
@@ -16,8 +15,10 @@ class SART(IterativeReconAlg):
     ) + IterativeReconAlg.__doc__
 
     def __init__(self, proj, geo, angles, niter, **kwargs):
-        if "blocksize" in kwargs and kwargs['blocksize']>1:
-            print('Warning: blocksize is set to 1, please use an OS version of the algorithm for blocksize > 1')
+        if "blocksize" in kwargs and kwargs["blocksize"] > 1:
+            print(
+                "Warning: blocksize is set to 1, please use an OS version of the algorithm for blocksize > 1"
+            )
         kwargs.update(dict(blocksize=1))
         IterativeReconAlg.__init__(self, proj, geo, angles, niter, **kwargs)
 
@@ -25,7 +26,7 @@ class SART(IterativeReconAlg):
 sart = decorator(SART, name="sart")
 
 
-class SIRT(IterativeReconAlg):  
+class SIRT(IterativeReconAlg):
     __doc__ = (
         "SIRT solves Cone Beam CT image reconstruction using \n"
         "Simultaneous Iterative Reconstructive Technique algorithm\n"
@@ -35,8 +36,12 @@ class SIRT(IterativeReconAlg):
     ) + IterativeReconAlg.__doc__
 
     def __init__(self, proj, geo, angles, niter, **kwargs):
-        if "blocksize" in kwargs and kwargs['blocksize']>1:
-            print('Warning: blocksize is set to {}, please do not specify blocksize for this algorithm'.format(angles.shape[0]))
+        if "blocksize" in kwargs and kwargs["blocksize"] > 1:
+            print(
+                "Warning: blocksize is set to {}, please do not specify blocksize for this algorithm".format(
+                    angles.shape[0]
+                )
+            )
         kwargs.update(dict(blocksize=angles.shape[0]))
         IterativeReconAlg.__init__(self, proj, geo, angles, niter, **kwargs)
 
@@ -44,7 +49,7 @@ class SIRT(IterativeReconAlg):
 sirt = decorator(SIRT, name="sirt")
 
 
-class OS_SART(IterativeReconAlg):  
+class OS_SART(IterativeReconAlg):
     __doc__ = (
         "OS_SART solves Cone Beam CT image reconstruction using Oriented Subsets\n"
         "Simultaneous Algebraic Reconstruction Technique algorithm\n"
@@ -54,15 +59,15 @@ class OS_SART(IterativeReconAlg):
     ) + IterativeReconAlg.__doc__
 
     def __init__(self, proj, geo, angles, niter, **kwargs):
-        
-        self.blocksize = 20 if 'blocksize' not in kwargs else kwargs["blocksize"]       
+
+        self.blocksize = 20 if "blocksize" not in kwargs else kwargs["blocksize"]
         IterativeReconAlg.__init__(self, proj, geo, angles, niter, **kwargs)
 
 
 ossart = decorator(OS_SART, name="ossart")
 
 
-class SART_TV(IterativeReconAlg):  
+class SART_TV(IterativeReconAlg):
     __doc__ = (
         "SART_TV solves Cone Beam CT image reconstruction using Simultaneous \n"
         "Algebraic Reconstruction Technique with TV regularization algorithm\n"
@@ -72,12 +77,14 @@ class SART_TV(IterativeReconAlg):
     ) + IterativeReconAlg.__doc__
 
     def __init__(self, proj, geo, angles, niter, **kwargs):
-        
-        if "blocksize" in kwargs and kwargs['blocksize']>1:
-            print('Warning: blocksize is set to 1, please use an OS version of the algorithm for blocksize > 1')
+
+        if "blocksize" in kwargs and kwargs["blocksize"] > 1:
+            print(
+                "Warning: blocksize is set to 1, please use an OS version of the algorithm for blocksize > 1"
+            )
         kwargs.update(dict(blocksize=1))
-        self.tvlambda = 50 if 'tvlambda' not in kwargs else kwargs['tvlambda']
-        self.tviter = 50 if 'tviter' not in kwargs else kwargs['tviter']
+        self.tvlambda = 50 if "tvlambda" not in kwargs else kwargs["tvlambda"]
+        self.tviter = 50 if "tviter" not in kwargs else kwargs["tviter"]
         # these two settings work well for nVoxel=[254,254,254]
 
         IterativeReconAlg.__init__(self, proj, geo, angles, niter, **kwargs)
@@ -108,7 +115,7 @@ class SART_TV(IterativeReconAlg):
 sart_tv = decorator(SART_TV, name="sart_tv")
 
 
-class OSSART_TV(IterativeReconAlg):  
+class OSSART_TV(IterativeReconAlg):
     __doc__ = (
         "OSSART_TV solves Cone Beam CT image reconstruction using Oriented Subsets\n"
         "Simultaneous Algebraic Reconstruction Technique with TV regularization algorithm\n"
@@ -119,15 +126,15 @@ class OSSART_TV(IterativeReconAlg):
     ) + IterativeReconAlg.__doc__
 
     def __init__(self, proj, geo, angles, niter, **kwargs):
-        
-        self.blocksize = 20 if 'blocksize' not in kwargs else kwargs['blocksize']
-        self.tvlambda = 50 if 'tvlambda' not in kwargs else kwargs['tvlambda']
-        self.tviter = 50 if 'tviter' not in kwargs else kwargs['tviter']
+
+        self.blocksize = 20 if "blocksize" not in kwargs else kwargs["blocksize"]
+        self.tvlambda = 50 if "tvlambda" not in kwargs else kwargs["tvlambda"]
+        self.tviter = 50 if "tviter" not in kwargs else kwargs["tviter"]
         # these two settings work well for nVoxel=[254,254,254]
 
         IterativeReconAlg.__init__(self, proj, geo, angles, niter, **kwargs)
 
-   # Override
+    # Override
     def run_main_iter(self):
         """
         Goes through the main iteration for the given configuration.
@@ -142,11 +149,12 @@ class OSSART_TV(IterativeReconAlg):
                 res_prev = copy.deepcopy(self.res)
             if self.verbose:
                 self._estimate_time_until_completion(i)
-            
+
             getattr(self, self.dataminimizing)()
             # print("run_main_iter: gpuids = {}", self.gpuids)
             self.res = im3ddenoise(self.res, self.tviter, self.tvlambda, self.gpuids)
             if Quameasopts is not None:
                 self.error_measurement(res_prev, i)
+
 
 ossart_tv = decorator(OSSART_TV, name="ossart_tv")
