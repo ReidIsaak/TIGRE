@@ -20,8 +20,8 @@ LOG_DIRS = [
     "20251212-134851",
     "20251212-202544",
 ]
-FILTER = "hann"
-FILTER_STR = "hann"
+FILTER = "ram_lak"
+FILTER_STR = "ram"
 
 
 def main():

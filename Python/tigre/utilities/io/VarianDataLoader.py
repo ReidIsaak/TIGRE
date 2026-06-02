@@ -86,10 +86,11 @@ def correct_ring_artifacts(log_projs: NDArray, kernel_size: tuple[int, int] = (1
 
 
 def log_normalize(proj_data: ProjData, blank_proj_data: ProjData) -> NDArray:
-    """Applies log normalization: p = -log(I/I0).
+    """Log normalizes  proj_data: p = -log(proj_data/blank_proj_data).
+    Blank scans are interpolated at the proj angle if multiple blank scans are provided.
 
     Returns:
-        NDArray: log normalized projections
+        NDArray: log-normalized projections
     """
     log_projs = np.zeros_like(proj_data.projs)
     eps = np.finfo(proj_data.projs.dtype).eps
