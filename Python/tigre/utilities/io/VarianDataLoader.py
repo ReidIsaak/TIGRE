@@ -21,6 +21,7 @@ from tigre.utilities.io.varian.scatter import (
 from scipy.ndimage import median_filter
 from tqdm import tqdm
 from keras import models
+from pathlib import Path
 
 
 def VarianDataLoader(filepath: PathLike, **kwargs) -> tuple[NDArray, Geometry, NDArray]:
@@ -63,13 +64,20 @@ def VarianDataLoader(filepath: PathLike, **kwargs) -> tuple[NDArray, Geometry, N
 
     if cnn_model is not None:
         proj_data.projs, blank_proj_data.projs = cnn_correct_scatter(
-            proj_data, blank_proj_data, cnn_model, max_scatt_frac=max_scatt_frac
+            proj_data,
+            blank_proj_data,
+            cnn_model,
+            max_scatt_frac=max_scatt_frac,
         )
 
     elif fasks:
         sc_calib = ScattParams(filepath)
         proj_data.projs = correct_scatter(
-            proj_data, blank_proj_data, geometry, sc_calib, max_scatt_frac=max_scatt_frac
+            proj_data,
+            blank_proj_data,
+            geometry,
+            sc_calib,
+            max_scatt_frac=max_scatt_frac,
         )
 
     log_projs = log_normalize(proj_data, blank_proj_data)
